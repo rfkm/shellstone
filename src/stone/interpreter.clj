@@ -120,3 +120,6 @@
                 (eval-args (postfix nest) tgt e))
               (stone-eval (operand) e)))]
     (eval-sub e 0)))
+
+(defmethod stone-eval :lambda [ast e]
+  (->Function (:params ast) (:body ast) e))

@@ -179,3 +179,14 @@
                                    :children []}
   (value postfix "(100, 200)") => {:token :arguments
                                    :children [100 200]})
+(fact "lambda"
+  (value lambda "fun(x){x}")  => {:token :lambda
+                                  :params {:token :param-list
+                                           :children [:x]}
+                                  :body {:token :block
+                                         :children [:x]}}
+  (value lambda "fun (x){x}") => {:token :lambda
+                                  :params {:token :param-list
+                                           :children [:x]}
+                                  :body {:token :block
+                                         :children [:x]}})

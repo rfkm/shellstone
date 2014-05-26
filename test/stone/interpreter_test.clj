@@ -57,5 +57,25 @@
         }
         incX()
         x")                    => 1
-    ))
+    (e "inc = fun(x) {x + 1}
+        inc(3)")               => 4
+    (e "def counter (c) {
+          fun () { c = c + 1 }
+        }
+        c1 = counter(0)
+        c1()")               => 1
+    (e "def counter (c) {
+          fun () { c = c + 1 }
+        }
+        c1 = counter(0)
+        c1()
+        c1()")               => 2
+    (e "def counter (c) {
+          fun () { c = c + 1 }
+        }
+        c1 = counter(0)
+        c2 = counter(0)
+        c1()
+        c1()
+        c2()")               => 1))
 

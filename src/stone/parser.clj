@@ -41,7 +41,7 @@
 (def comma-sep1 (:comma-sep1 rec))
 
 
-(declare expr statement postfix args)
+(declare expr statement postfix args lambda)
 
 (def ws 
   "whitespace"
@@ -61,13 +61,17 @@
   (bind [i identifier]
         (return (keyword i))))
 
-(def primary 
-  "primary : ( '(' expr ')' | NUMBER | IDENTIFIER | STRING ) { postfix }"
+(def primary-1
+  "primary-1 : ( '(' expr ')' | NUMBER | IDENTIFIER | STRING ) { postfix }"
   (bind [n (<|> (parens (fwd expr)) number id string)
          ps (many postfix)]
         (if (> (count ps) 0)
           (return {:token :primary-expr :children (vec (cons n ps))})
           (return n))))
+
+(def primary
+  "primary : lambda | primary-1"
+  (<|> (fwd lambda) primary-1))
 
 ;; factor
 (def factor
@@ -189,6 +193,13 @@
 (def postfix 
   "postfix : '(' [ args ] ')'"
   (parens args))
+
+(def lambda
+  "lambda : 'fun' param_list block"
+  (bind [_ (token* "fun")
+         ps (skip-ws param-list)
+         b block]
+        (return {:token :lambda :params ps :body b})))
 
 ;; program
 (def program
