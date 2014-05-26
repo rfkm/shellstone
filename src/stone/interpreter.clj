@@ -1,5 +1,5 @@
 (ns stone.interpreter
-  (:use [midje.sweet]
+  (:use [clojure.contrib.seq-utils :only [indexed]]
         [stone.parser]
         [stone.env]))
 
@@ -82,3 +82,41 @@
       (stone-eval body e)
       (when else-body
         (stone-eval else-body e)))))
+
+(defrecord Function [param-list block env])
+
+(defmethod stone-eval :def-statement [ast e]
+  (dosync (alter e put-new-env (:name ast) (->Function (:params ast) (:body ast) e)))
+  (:name ast))
+
+(defn eval-params [ps idx value e]
+  (let [name ((:children ps) idx)] 
+    (dosync (alter e put-new-env name value))))
+
+(defn eval-args [ast tgt e]
+  (when (not (instance? Function tgt))
+    (throw (Exception. "bad function")))
+  (let [params (:param-list tgt)
+        ne (ref (->Env {} (:env tgt)))]
+    (when (not= (count (:children ast)) 
+                (count (:children params)))
+      (throw (Exception. "bad number of arguments")))
+    (doseq [[idx a] (indexed (:children ast))]
+      (eval-params params idx (stone-eval a e) ne))
+
+    (stone-eval (:block tgt) ne)))
+
+(defmethod stone-eval :primary-expr [ast e]
+  (letfn [(operand []
+            (-> ast :children first))
+          (postfix [nest]
+            (let [c (:children ast)] 
+              (c (- (count c) nest 1))))
+          (has-postfix [nest]
+            (> (- (count (:children ast)) nest) 1))
+          (eval-sub [e nest]
+            (if (has-postfix nest)
+              (let [tgt (eval-sub e (inc nest))]
+                (eval-args (postfix nest) tgt e))
+              (stone-eval (operand) e)))]
+    (eval-sub e 0)))

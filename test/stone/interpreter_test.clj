@@ -1,4 +1,4 @@
-(ns stone.parser-test
+(ns stone.interpreter-test
   (:require [clojure.test :refer :all]
             [stone.parser :refer :all]
             [stone.interpreter :refer :all]
@@ -31,4 +31,20 @@
           }
           i = i + 1
         }
-        acc")                 => 30))
+        acc")                 => 30
+    (e "def foo(){100}")      => :foo
+    (e "def foo(){100}
+        foo()")               => 100
+    (e "def add(a, b) {a+b}
+        add(10, 20)")         => 30
+    (e "def x2(a) {a*2}
+        x2(10)")              => 20
+    (e "def fib(n) {
+          if n < 2 {
+            n
+          } else {
+            fib(n - 1) + fib(n - 2)
+          }
+        }
+        fib(10)")              => 55))
+

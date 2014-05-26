@@ -1,7 +1,7 @@
 (ns stone.parser
   (:require [blancas.kern.lexer :as lex])
   (:use [blancas.kern.core]
-        [blancas.kern.expr]))
+        [blancas.kern.expr :exclude [postfix]]))
 
 (def stone-style
   (assoc lex/c-style
@@ -41,6 +41,8 @@
 (def comma-sep1 (:comma-sep1 rec))
 
 
+(declare expr statement postfix args)
+
 (def ws 
   "whitespace"
   (<|> (sym* \space) (sym* \tab)))
@@ -59,10 +61,13 @@
   (bind [i identifier]
         (return (keyword i))))
 
-(declare expr)
 (def primary 
-  "primary : '(' expr ')' | NUMBER | IDENTIFIER | STRING"
-  (<|> (parens (fwd expr)) number id string))
+  "primary : ( '(' expr ')' | NUMBER | IDENTIFIER | STRING ) { postfix }"
+  (bind [n (<|> (parens (fwd expr)) number id string)
+         ps (many postfix)]
+        (if (> (count ps) 0)
+          (return {:token :primary-expr :children (vec (cons n ps))})
+          (return n))))
 
 ;; factor
 (def factor
@@ -101,8 +106,6 @@
 (def expr ins)
 
 ;; block
-(declare statement)
-
 (def block
   "block : '{' [ statement ] {(';' | EOL) [ statement ]} '}'"
   (bind [sts (braces (sep-by (<|> semi new-line*)
@@ -112,7 +115,12 @@
 ;; simple
 (def simple 
   "simple : expr"
-  expr)
+  (bind [e expr
+         a (optional args)]
+        (if (> (count (:children a)) 0)
+          (return {:token :primary-expr :children [e a]})
+          (return e))))
+
 
 ;;statement
 (def if-statement
@@ -151,9 +159,40 @@
                 simple)]
         (return l)))
 
+;; function related
+(def param 
+  "param : IDENTIFIER"
+  id)
+
+(def params 
+  "params : param { ',' param }"
+  (bind [ps (comma-sep param)]
+                  (return {:token :param-list :children ps})))
+(def param-list 
+  "param_list : '(' [ params ] ')'"
+  (parens params))
+
+(def defun 
+  "defun: 'def' IDENTIFIER param_list block"
+  (bind [_ (token* "def")
+         _ (many1 (sym* \space))
+         n id
+         a param-list
+         b block]
+        (return {:token :def-statement :name n :params a :body b})))
+
+(def args 
+  "args : expr { ',' expr }"
+  (bind [as (comma-sep expr)]
+                (return {:token :arguments :children as})))
+
+(def postfix 
+  "postfix : '(' [ args ] ')'"
+  (parens args))
+
 ;; program
 (def program
-  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws statement))]
+  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> defun statement)))]
         (return {:token :root :children c})))
 
 
