@@ -39,6 +39,10 @@
         add(10, 20)")         => 30
     (e "def x2(a) {a*2}
         x2(10)")              => 20
+    (e "x = 1
+        def foo (y) {x}
+        def bar (x) { foo(x + 1) }
+        bar(3)")              => 1
     (e "def fib(n) {
           if n < 2 {
             n
@@ -46,5 +50,12 @@
             fib(n - 1) + fib(n - 2)
           }
         }
-        fib(10)")              => 55))
+        fib(10)")              => 55
+    (e "x = 0
+        def incX(){
+          x = x + 1
+        }
+        incX()
+        x")                    => 1
+    ))
 

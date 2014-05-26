@@ -7,7 +7,7 @@
   (put-env [this name value])
   (get-env [this name])
   (set-outer [this e])
-  (get-outer [this e])
+  (get-outer [this])
   (where [this name]))
 
 (extend-type Env
@@ -19,7 +19,8 @@
     (let [e2 (where this name)]
       (if (nil? e2)
         (put-new-env this name value)
-        (put-new-env e2 name value))))
+        (do (dosync (alter e2 put-new-env name value))
+            this))))
   
   (get-env [this name]
     (let [v ((:values this) name)]
@@ -35,6 +36,9 @@
     (:outer this))
   
   (where [this name]
-    (cond ((:values this) name) this
-          (nil? (:outer this)) nil
-          :else (where @(:outer this) name))))
+    (letfn [(where-sub [e name child]
+              (cond ((:values e) name) (:outer child)
+                    (nil? (:outer e)) nil
+                    :else (where-sub @(:outer e) name e)))]
+      (cond (nil? (:outer this)) nil
+            :else (where-sub @(:outer this) name this)))))
