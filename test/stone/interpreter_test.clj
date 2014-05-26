@@ -50,26 +50,26 @@
             fib(n - 1) + fib(n - 2)
           }
         }
-        fib(10)")              => 55
+        fib(10)")             => 55
     (e "x = 0
         def incX(){
           x = x + 1
         }
         incX()
-        x")                    => 1
+        x")                   => 1
     (e "inc = fun(x) {x + 1}
-        inc(3)")               => 4
+        inc(3)")              => 4
     (e "def counter (c) {
           fun () { c = c + 1 }
         }
         c1 = counter(0)
-        c1()")               => 1
+        c1()")                => 1
     (e "def counter (c) {
           fun () { c = c + 1 }
         }
         c1 = counter(0)
         c1()
-        c1()")               => 2
+        c1()")                => 2
     (e "def counter (c) {
           fun () { c = c + 1 }
         }
@@ -77,5 +77,7 @@
         c2 = counter(0)
         c1()
         c1()
-        c2()")               => 1))
+        c2()")                => 1
+    (e "a = fun(x){ fun(y){ x + y } }
+            a(10)(20)")       => 30))
 
