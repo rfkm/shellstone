@@ -41,7 +41,7 @@
 (def comma-sep1 (:comma-sep1 rec))
 
 
-(declare expr statement postfix args lambda)
+(declare expr statement postfix args lambda dot)
 
 (def ws 
   "whitespace"
@@ -192,7 +192,8 @@
 
 (def postfix 
   "postfix : '(' [ args ] ')'"
-  (parens args))
+  (<|> (fwd dot) 
+       (parens args)))
 
 (def lambda
   "lambda : 'fun' param_list block"
@@ -201,9 +202,37 @@
          b block]
         (return {:token :lambda :params ps :body b})))
 
+;; class related
+(def member 
+  "member : defun | simple"
+  (<|> defun simple))
+
+
+(def class-body
+  "class-body : '{' [ member ] {(';' | EOL) [ member ]} '}'"
+  (bind [sts (braces (sep-by (<|> semi new-line*)
+                             (skip-ws (optional member))))]
+        (return {:token :class-body :children (remove nil? sts)})))
+
+(def defclass
+  "defclass: 'class' IDENTIFIER [ 'extends' IDENTIFIER ] class-body"
+  (bind [_ (token* "class")
+         _ (many1 (sym* \space))
+         n id
+         a (optional (>> (token* "extends")
+                         (skip-ws id)))
+         b class-body]
+        (return {:token :defclass :name n :super-class a :body b})))
+
+(def dot
+  "dot : '.' IDENTIFIER"
+  (bind [_ (token* ".")
+         n id]
+        (return {:token :dot :name n})))
+
 ;; program
-(def program
-  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> defun statement)))]
+(def program  "[ defclass | def | statement ] (';' | EOL)"
+  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> defclass defun statement)))]
         (return {:token :root :children c})))
 
 

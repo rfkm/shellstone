@@ -79,5 +79,47 @@
         c1()
         c2()")                => 1
     (e "a = fun(x){ fun(y){ x + y } }
-            a(10)(20)")       => 30))
+            a(10)(20)")       => 30
+    (e "class Position {
+          x = y = 0
+          def move (nx, ny) {
+            x = nx; y = ny;
+          }
+        }")                   => :Position
+    (e "class Position {
+          x = y = 0
+          def move (nx, ny) {
+            x = nx; y = ny;
+          }
+        }
+        p = Position.new
+        p.move(3, 4)
+        p.y")                 => 4
+    (e "class Position {
+          x = 3
+          def foo(){x}
+        }
+        p = Position.new
+        p.x = 10
+        p.foo()") => 10
+    (e "a = 10
+        class Position {
+          x = 30
+          def foo() { a + x}
+        }
+        p = Position.new
+        a = 20
+        p.foo()")             => 50
+    (e "class Foo {
+          x = 30
+          def foo() {x * 2}
+        }
+        class Bar extends Foo {
+          y = 20
+          def bar() { foo() + y }
+        }
+        p = Bar.new
+        p.bar()")             => 80))
+
+
 

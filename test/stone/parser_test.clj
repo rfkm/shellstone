@@ -31,7 +31,13 @@
                                              {:token :arguments
                                               :children [:a]}
                                              {:token :arguments
-                                              :children [:b]}]})
+                                              :children [:b]}]}
+  (value primary "foo.bar(100)") => {:token :primary-expr
+                                    :children [:foo
+                                               {:token :dot
+                                                :name :bar}
+                                               {:token :arguments
+                                                :children [100]}]})
 
 (fact "simple"
   (value simple "foo a") => {:token :primary-expr
@@ -148,6 +154,19 @@
                                                    :children [:x]}}
                                            {:token :primary-expr
                                             :children [:foo {:token :arguments
+                                                             :children [100]}]}]}
+  (value program "class Foo{ x = 100 }
+                  foo 100") => {:token :root
+                                :children [{:token :defclass
+                                            :name :Foo
+                                            :super-class nil
+                                            :body {:token :class-body
+                                                   :children  [{:token :binary-expr
+                                                                :op :=
+                                                                :left :x
+                                                                :right 100}]}}
+                                           {:token :primary-expr
+                                            :children [:foo {:token :arguments
                                                              :children [100]}]}]})
 
 
@@ -178,7 +197,10 @@
   (value postfix "()")         => {:token :arguments
                                    :children []}
   (value postfix "(100, 200)") => {:token :arguments
-                                   :children [100 200]})
+                                   :children [100 200]}
+  (value postfix ".foo") => {:token :dot
+                             :name :foo})
+
 (fact "lambda"
   (value lambda "fun(x){x}")  => {:token :lambda
                                   :params {:token :param-list
@@ -190,3 +212,42 @@
                                            :children [:x]}
                                   :body {:token :block
                                          :children [:x]}})
+(fact "member"
+  (value member "def a (x) { x }") => {:token :def-statement 
+                                      :name :a
+                                      :params {:token :param-list 
+                                               :children [:x]}
+                                      :body {:token :block
+                                             :children [:x]}}
+  (value member "foo a") => {:token :primary-expr
+                             :children [:foo {:token :arguments
+                                              :children [:a]}]})
+
+
+(fact "class-body"
+  (value class-body "{ def a (x) { x }; x = 100}") => {:token :class-body
+                                                       :children [{:token :def-statement 
+                                                                   :name :a
+                                                                   :params {:token :param-list 
+                                                                            :children [:x]}
+                                                                   :body {:token :block
+                                                                          :children [:x]}}
+                                                                  {:token :binary-expr 
+                                                                   :op := 
+                                                                   :left :x
+                                                                   :right 100}]})
+
+(fact "def-class"
+  (value defclass "class Foo { x = 100 }") => {:token :defclass
+                                               :name :Foo
+                                               :super-class nil
+                                               :body {:token :class-body
+                                                      :children [{:token :binary-expr
+                                                                  :op :=
+                                                                  :left :x
+                                                                  :right 100}]}}
+  (value defclass "class Foo extends Hoge {}") => {:token :defclass
+                                                   :name :Foo
+                                                   :super-class :Hoge
+                                                   :body {:token :class-body
+                                                          :children []}})

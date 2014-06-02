@@ -3,6 +3,11 @@
         [stone.parser]
         [stone.env]))
 
+
+(defrecord Function [param-list block env])
+(defrecord ClassInfo [definition super env])
+(defrecord StoneObject [env])
+
 (defn- dispatch 
   ([ast e]
      (dispatch ast))
@@ -32,6 +37,7 @@
 (defmethod stone-eval :id [ast e]
   (get-env @e ast))
 
+(declare set-field has-postfix get-postfix eval-sub)
 (defn- compute-assign [left right e]
   (if (or
        (keyword? left)
@@ -42,6 +48,17 @@
       (dosync (alter e put-env left rvalue))
       rvalue)
     (throw (Exception. "bad assignment"))))
+
+(defn- compute-assign-1 [left right e]
+  (if (and (= (:token left) :primary-expr)
+           (has-postfix left 0)
+           (= (:token (get-postfix left 0)) :dot))
+    (let [t (eval-sub left e 1)]
+      (if (instance? StoneObject t)
+        (set-field t (get-postfix left 0) right)
+        (compute-assign left right e)))
+    (compute-assign left right e)
+    ))
 
 (defn- compute-op [op left right]
   (condp = op
@@ -59,7 +76,7 @@
         left (:left ast)
         right (:right ast)]
     (if (= op :=) 
-      (compute-assign left right e)
+      (compute-assign-1 left right e)
       (compute-op op (stone-eval left e) (stone-eval right e)))))
 
 (defmethod stone-eval :while-statement [ast e]
@@ -83,8 +100,6 @@
       (when else-body
         (stone-eval else-body e)))))
 
-(defrecord Function [param-list block env])
-
 (defmethod stone-eval :def-statement [ast e]
   (dosync (alter e put-new-env (:name ast) (->Function (:params ast) (:body ast) e)))
   (:name ast))
@@ -106,20 +121,98 @@
 
     (stone-eval (:block tgt) ne)))
 
+(defn dispatch-postfix [pst value e]
+  (:token pst))
+
+(defmulti eval-postfix dispatch-postfix)
+(defmethod eval-postfix :arguments [pst value e]
+  (eval-args pst value e))
+
+(defn operand [ast]
+  (-> ast :children first))
+(defn get-postfix [ast nest]
+  (let [c (:children ast)] 
+    (c (- (count c) nest 1))))
+(defn has-postfix [ast nest]
+  (> (- (count (:children ast)) nest) 1))
+(defn eval-sub [ast e nest]
+  (if (has-postfix ast nest)
+    (let [tgt (eval-sub ast e (inc nest))]
+      (eval-postfix (get-postfix ast nest) tgt e))
+    (stone-eval (operand ast) e)))
 (defmethod stone-eval :primary-expr [ast e]
-  (letfn [(operand []
-            (-> ast :children first))
-          (postfix [nest]
-            (let [c (:children ast)] 
-              (c (- (count c) nest 1))))
-          (has-postfix [nest]
-            (> (- (count (:children ast)) nest) 1))
-          (eval-sub [e nest]
-            (if (has-postfix nest)
-              (let [tgt (eval-sub e (inc nest))]
-                (eval-args (postfix nest) tgt e))
-              (stone-eval (operand) e)))]
-    (eval-sub e 0)))
+  (eval-sub ast e 0))
+
+(defn create-class-info [ast e]
+  (let [sp (:super-class ast)
+        sc (when sp
+             (let [spci (get-env @e sp)]
+               (if (instance? ClassInfo spci) 
+                 spci
+                 (throw (Exception. "unknown super class")))))]
+    
+    (->ClassInfo ast sc e)))
+(defmethod stone-eval :defclass [ast e]
+  (let [ci (create-class-info ast e)
+        n (:name ast)]
+    (dosync (alter e put-env n ci))
+    n))
+
+(defmethod stone-eval :class-body [ast e]
+  (let [c (:children ast)]
+    (loop [xs c res nil]
+      (if (zero? (count xs))
+        nil
+        (recur (rest xs) (stone-eval (first xs) e))))))
+
+(defn init-object [ci e]
+  (when-let [sp (:super ci)]
+    (init-object sp e))
+  (stone-eval (:body (:definition ci)) e))
+
+(defn get-env-object [obj member]
+  (if (contains? (:values @(:env obj)) member)
+    (:env obj)
+    (throw (Exception. "bad access")) ;; TODO: custom exception class
+    ))
+(defn read-object [obj member]
+  (get-env @(get-env-object obj member) member))
+
+(defn write-object [obj member value]
+  (dosync (alter (get-env-object obj member) put-new-env member value)))
+
+(defn set-field [obj, dot, rvalue]
+  (let [n (:name dot)]
+    (try
+      (write-object obj n rvalue)
+      rvalue
+      (catch Exception e (throw (Exception. (str "bad member access: " n)))))))
+
+(defn create-instance [ast e ci]
+  (let [e (ref (->Env {} (:env ci)))
+        so (->StoneObject e)]
+    (dosync (alter e put-new-env :this so))
+    (init-object ci e)
+    so))
+
+(defn read-instance-member [ast e value]
+  (try
+    (read-object value (:name ast))))
+
+(defn eval-dot [ast value e]
+  (let [n (:name ast)]
+    (cond
+     (and (instance? ClassInfo value)
+          (= n :new)) 
+     (create-instance ast e value)
+     
+     (instance? StoneObject value) 
+     (read-instance-member ast e value)
+     
+     :else (throw (Exception. (str "bad member access:" n))))))
+
+(defmethod eval-postfix :dot [ast value e]
+  (eval-dot ast value e))
 
 (defmethod stone-eval :lambda [ast e]
   (->Function (:params ast) (:body ast) e))
