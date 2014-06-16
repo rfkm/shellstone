@@ -6,7 +6,6 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.cli "0.2.2"]
                  [org.clojure/clojure-contrib "1.2.0"]
-                 [org.clojars.jpoplett/fnparse "2.2.8"]
                  [org.blancas/kern "0.7.0"]]
   :profiles {:dev {:dependencies [[midje "1.6.3"]
                                   [org.clojure/tools.trace "0.7.8"]]}})
