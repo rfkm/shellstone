@@ -230,9 +230,18 @@
          n id]
         (return {:token :dot :name n})))
 
+(def revise
+  "defclass: 'revise' IDENTIFIER class-body"
+  (bind [_ (token* "revise")
+         _ (many1 (sym* \space))
+         n id
+         b class-body]
+        (return {:token :revise :name n :body b})))
+
 ;; program
-(def program  "[ defclass | def | statement ] (';' | EOL)"
-  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> defclass defun statement)))]
+(def program  
+  "[ revise | defclass | def | statement ] (';' | EOL)"
+  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> revise defclass defun statement)))]
         (return {:token :root :children c})))
 
 

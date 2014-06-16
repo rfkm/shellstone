@@ -251,3 +251,12 @@
                                                    :super-class :Hoge
                                                    :body {:token :class-body
                                                           :children []}})
+
+(fact "revise"
+  (value revise "revise Foo { x = 100 }") => {:token :revise
+                                              :name :Foo
+                                              :body {:token :class-body
+                                                     :children [{:token :binary-expr
+                                                                 :op :=
+                                                                 :left :x
+                                                                 :right 100}]}})

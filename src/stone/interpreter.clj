@@ -158,6 +158,27 @@
     (dosync (alter e put-env n ci))
     n))
 
+(defprotocol Revised
+  (add-reviser [self reviser]))
+
+(extend-type ClassInfo
+  Revised
+  (add-reviser [self reviser]
+    (let [old (:reviser self)] 
+      (assoc self :reviser (assoc reviser :super old)))))
+
+(defmethod stone-eval :revise [ast e]
+  (let [n (:name ast)
+        ci (get-env @e n)
+        reviser (create-class-info ast e)
+        ]
+    (if (and (satisfies? Revised ci)
+             reviser
+             (instance? ClassInfo reviser))
+      (dosync (alter e put-env n (add-reviser ci reviser)))
+      (throw (Exception. "unknown target class")))
+    n))
+
 (defmethod stone-eval :class-body [ast e]
   (let [c (:children ast)]
     (loop [xs c res nil]
@@ -168,7 +189,9 @@
 (defn init-object [ci e]
   (when-let [sp (:super ci)]
     (init-object sp e))
-  (stone-eval (:body (:definition ci)) e))
+  (stone-eval (:body (:definition ci)) e)
+  (when-let [rv (:reviser ci)]
+    (init-object rv e)))
 
 (defn get-env-object [obj member]
   (if (contains? (:values @(:env obj)) member)

@@ -119,7 +119,23 @@
           def bar() { foo() + y }
         }
         p = Bar.new
-        p.bar()")             => 80))
+        p.bar()")             => 80
+    (e "class Foo {
+          x = 30
+          def foo() { x * 2 }
+        }
+        revise Foo {
+          y = 100
+          def foo() { y + x }
+        }
+        revise Foo {
+          y = 50
+          z = 200
+          def bar() { z * 2 }
+          def foo() { y + x + bar() }
+        }
+        f = Foo.new
+        f.foo()")             => 480))
 
 
 
