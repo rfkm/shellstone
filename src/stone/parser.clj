@@ -171,7 +171,7 @@
 (def params 
   "params : param { ',' param }"
   (bind [ps (comma-sep param)]
-                  (return {:token :param-list :children ps})))
+        (return {:token :param-list :children ps})))
 (def param-list 
   "param_list : '(' [ params ] ')'"
   (parens params))
@@ -188,7 +188,7 @@
 (def args 
   "args : expr { ',' expr }"
   (bind [as (comma-sep expr)]
-                (return {:token :arguments :children as})))
+        (return {:token :arguments :children as})))
 
 (def postfix 
   "postfix : '(' [ args ] ')'"
