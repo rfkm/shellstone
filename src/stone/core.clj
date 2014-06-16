@@ -1,13 +1,6 @@
-(ns stone.core)
+(ns stone.core
+  (:gen-class)
+  (:use [clojure.tools.cli :only [cli]]))
 
-(use 'stone.lex)
-
-(def txt "while i < 10 {
-  sum = sum + i // comment
-          
-  i = i + 1
-}
-sum")
-
-
-(lex (java.io.StringReader. txt))
+;;; TODO: implement entry point
+(defn -main [& args])
