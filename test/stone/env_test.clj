@@ -1,4 +1,4 @@
-(ns stone.parser-test
+(ns stone.env-test
   (:require [stone.env :refer :all])
   (:use [midje.sweet]))
 
