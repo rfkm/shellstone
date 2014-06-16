@@ -6,7 +6,7 @@
   (:use [midje.sweet]))
 
 (fact "eval"
-  (let [e #(stone-eval (ast %) (ref (->Env {} nil)))] 
+  (let [e #(stone-eval (ast %) (atom (->Env {} nil)))] 
     (e "1")                   => 1
     (e "1.1")                 => 1.1
     (e "\"foo\"")             => "foo"

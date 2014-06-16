@@ -45,7 +45,7 @@
             (zero? (count (second (:children left))))
             (= (:token (first (:children left))) :id)))
     (let [rvalue (stone-eval right e)]
-      (dosync (alter e put-env left rvalue))
+      (swap! e put-env left rvalue)
       rvalue)
     (throw (Exception. "bad assignment"))))
 
@@ -101,18 +101,18 @@
         (stone-eval else-body e)))))
 
 (defmethod stone-eval :def-statement [ast e]
-  (dosync (alter e put-new-env (:name ast) (->Function (:params ast) (:body ast) e)))
+  (swap! e put-new-env (:name ast) (->Function (:params ast) (:body ast) e))
   (:name ast))
 
 (defn eval-params [ps idx value e]
   (let [name ((:children ps) idx)] 
-    (dosync (alter e put-new-env name value))))
+    (swap! e put-new-env name value)))
 
 (defn eval-args [ast tgt e]
   (when (not (instance? Function tgt))
     (throw (Exception. "bad function")))
   (let [params (:param-list tgt)
-        ne (ref (->Env {} (:env tgt)))]
+        ne (atom (->Env {} (:env tgt)))]
     (when (not= (count (:children ast)) 
                 (count (:children params)))
       (throw (Exception. "bad number of arguments")))
@@ -155,7 +155,7 @@
 (defmethod stone-eval :defclass [ast e]
   (let [ci (create-class-info ast e)
         n (:name ast)]
-    (dosync (alter e put-env n ci))
+    (swap! e put-env n ci)
     n))
 
 (defprotocol Revised
@@ -175,7 +175,7 @@
     (if (and (satisfies? Revised ci)
              reviser
              (instance? ClassInfo reviser))
-      (dosync (alter e put-env n (add-reviser ci reviser)))
+      (swap! e put-env n (add-reviser ci reviser))
       (throw (Exception. "unknown target class")))
     n))
 
@@ -202,7 +202,7 @@
   (get-env @(get-env-object obj member) member))
 
 (defn write-object [obj member value]
-  (dosync (alter (get-env-object obj member) put-new-env member value)))
+  (swap! (get-env-object obj member) put-new-env member value))
 
 (defn set-field [obj, dot, rvalue]
   (let [n (:name dot)]
@@ -212,9 +212,9 @@
       (catch Exception e (throw (Exception. (str "bad member access: " n)))))))
 
 (defn create-instance [ast e ci]
-  (let [e (ref (->Env {} (:env ci)))
+  (let [e (atom (->Env {} (:env ci)))
         so (->StoneObject e)]
-    (dosync (alter e put-new-env :this so))
+    (swap! e put-new-env :this so)
     (init-object ci e)
     so))
 

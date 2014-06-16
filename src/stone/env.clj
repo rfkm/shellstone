@@ -19,7 +19,7 @@
     (let [e2 (where this name)]
       (if (nil? e2)
         (put-new-env this name value)
-        (do (dosync (alter e2 put-new-env name value))
+        (do (swap! e2 put-new-env name value)
             this))))
   
   (get-env [this name]
