@@ -179,6 +179,13 @@
       (throw (Exception. "unknown target class")))
     n))
 
+(defmethod stone-eval :revise-body [ast e]
+  (let [c (:children ast)]
+    (loop [xs c res nil]
+      (if (zero? (count xs))
+        nil
+        (recur (rest xs) (stone-eval (first xs) e))))))
+
 (defmethod stone-eval :class-body [ast e]
   (let [c (:children ast)]
     (loop [xs c res nil]

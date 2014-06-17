@@ -230,13 +230,39 @@
          n id]
         (return {:token :dot :name n})))
 
+(def dec-include
+  "dec-include : 'include' IDENTIFIER"
+  (bind [_ (token* "include")
+         _ (many1 ws)
+         tgt id]
+        (return {:token :include :target tgt})))
+
+(def dec-link
+  "dec-link : 'link' IDENTIFIER"
+  (bind [_ (token* "link")
+         _ (many1 ws)
+         tgt id]
+        (return {:token :link :target tgt})))
+
+(def revise-member
+  "revise-member : defun | dec-include | dec-link | simple"
+  (<|> defun dec-include dec-link simple))
+
+(def revise-body
+  "revise-body : '{' [ revise-member ] {(';' | EOL) [ revise-member ]} '}'"
+  (bind [sts (braces (sep-by (<|> semi new-line*)
+                             (skip-ws (optional revise-member))))]
+        (return {:token :revise-body :children (remove nil? sts)})))
+
 (def revise
-  "defclass: 'revise' IDENTIFIER class-body"
+  "defclass: 'revise' IDENTIFIER : IDENTIFIER class-body"
   (bind [_ (token* "revise")
-         _ (many1 (sym* \space))
-         n id
-         b class-body]
-        (return {:token :revise :name n :body b})))
+         _ (many1 ws)
+         ms id
+         _ (skip-ws (sym* \:))
+         n (skip-ws id)
+         b revise-body]
+        (return {:token :revise :methodshell ms :name n :body b})))
 
 ;; program
 (def program  

@@ -124,11 +124,11 @@
           x = 30
           def foo() { x * 2 }
         }
-        revise Foo {
+        revise ms1:Foo {
           y = 100
           def foo() { y + x }
         }
-        revise Foo {
+        revise ms2:Foo {
           y = 50
           z = 200
           def bar() { z * 2 }

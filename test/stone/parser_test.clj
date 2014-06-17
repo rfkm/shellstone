@@ -4,6 +4,7 @@
   (:use [midje.sweet]
         [blancas.kern.core]))
 
+(require '[clojure.walk :as w])
 ;; (use 'blancas.kern.core)
 
 (fact "number"
@@ -252,11 +253,30 @@
                                                    :body {:token :class-body
                                                           :children []}})
 
+(fact "include"
+  (value dec-include "include foo") => {:token :include :target :foo})
+
+(fact "link"
+  (value dec-link "link foo") => {:token :link :target :foo})
+
+(fact "revise-member"
+  (value dec-include "include foo") => {:token :include :target :foo}
+  (value dec-link "link foo")       => {:token :link :target :foo}
+  (value defun "def a (x) { x }")   => {:token :def-statement 
+                                        :name :a
+                                        :params {:token :param-list 
+                                                 :children [:x]}
+                                        :body {:token :block
+                                               :children [:x]}})
+
 (fact "revise"
-  (value revise "revise Foo { x = 100 }") => {:token :revise
-                                              :name :Foo
-                                              :body {:token :class-body
-                                                     :children [{:token :binary-expr
-                                                                 :op :=
-                                                                 :left :x
-                                                                 :right 100}]}})
+  (value revise "revise ms:Foo { def a (x) { x } }") => {:token :revise
+                                                         :name :Foo
+                                                         :methodshell :ms
+                                                         :body {:token :revise-body
+                                                                :children [{:token :def-statement 
+                                                                            :name :a
+                                                                            :params {:token :param-list 
+                                                                                     :children [:x]}
+                                                                            :body {:token :block
+                                                                                   :children [:x]}}]}})
