@@ -203,9 +203,13 @@
         (return {:token :lambda :params ps :body b})))
 
 ;; class related
+(def method
+  (bind [d defun]
+        (return (assoc d :token :defmethod))))
+
 (def member 
-  "member : defun | simple"
-  (<|> defun simple))
+  "member : method | simple"
+  (<|> method simple))
 
 
 (def class-body
@@ -246,7 +250,7 @@
 
 (def revise-member
   "revise-member : defun | dec-include | dec-link | simple"
-  (<|> defun dec-include dec-link simple))
+  (<|> method dec-include dec-link simple))
 
 (def revise-body
   "revise-body : '{' [ revise-member ] {(';' | EOL) [ revise-member ]} '}'"
@@ -255,7 +259,7 @@
         (return {:token :revise-body :children (remove nil? sts)})))
 
 (def revise
-  "defclass: 'revise' IDENTIFIER : IDENTIFIER class-body"
+  "defclass: 'revise' IDENTIFIER : IDENTIFIER revise-body"
   (bind [_ (token* "revise")
          _ (many1 ws)
          ms id
@@ -266,8 +270,8 @@
 
 ;; program
 (def program  
-  "[ revise | defclass | def | statement ] (';' | EOL)"
-  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> revise defclass defun statement)))]
+  "[ revise | defclass | def | statement | dec-include ] (';' | EOL)"
+  (bind [c (end-by (many (<|> semi new-line*)) (skip-ws (<|> revise defclass dec-include defun statement)))]
         (return {:token :root :children c})))
 
 

@@ -3,8 +3,8 @@
         [stone.parser]
         [stone.env]))
 
-
 (defrecord Function [param-list block env])
+(defrecord Method [param-list block env])
 (defrecord ClassInfo [definition super env])
 (defrecord StoneObject [env])
 
@@ -35,7 +35,9 @@
   ast)
 
 (defmethod stone-eval :id [ast e]
-  (get-env @e ast))
+  (if (= ast :super) 
+    :super
+    (find-env e ast true)))
 
 (declare set-field has-postfix get-postfix eval-sub)
 (defn- compute-assign [left right e]
@@ -57,10 +59,10 @@
       (if (instance? StoneObject t)
         (set-field t (get-postfix left 0) right)
         (compute-assign left right e)))
-    (compute-assign left right e)
-    ))
+    (compute-assign left right e)))
 
 (defn- compute-op [op left right]
+
   (condp = op
     :+ (+ left right)
     :- (- left right)
@@ -104,15 +106,22 @@
   (swap! e put-new-env (:name ast) (->Function (:params ast) (:body ast) e))
   (:name ast))
 
+(defmethod stone-eval :defmethod [ast e]
+  (swap! e put-new-env (:name ast) (->Method (:params ast) (:body ast) e))
+  (:name ast))
+
 (defn eval-params [ps idx value e]
   (let [name ((:children ps) idx)] 
     (swap! e put-new-env name value)))
 
 (defn eval-args [ast tgt e]
-  (when (not (instance? Function tgt))
-    (throw (Exception. "bad function")))
+  (when (not (or (instance? Function tgt)
+                 (instance? Method tgt)))
+    (throw (Exception. (str "bad function: " tgt))))
   (let [params (:param-list tgt)
-        ne (atom (->Env {} (:env tgt)))]
+        ne (if (instance? Function tgt)
+             (atom (create-env (:env tgt)))
+             (atom (create-env (get-bottom (:env tgt)))))]
     (when (not= (count (:children ast)) 
                 (count (:children params)))
       (throw (Exception. "bad number of arguments")))
@@ -145,13 +154,15 @@
 
 (defn create-class-info [ast e]
   (let [sp (:super-class ast)
+        ms (:methodshell ast)
         sc (when sp
              (let [spci (get-env @e sp)]
                (if (instance? ClassInfo spci) 
                  spci
                  (throw (Exception. "unknown super class")))))]
     
-    (->ClassInfo ast sc e)))
+    (assoc (->ClassInfo ast sc e) :__methodshell__ ms)))
+
 (defmethod stone-eval :defclass [ast e]
   (let [ci (create-class-info ast e)
         n (:name ast)]
@@ -159,25 +170,26 @@
     n))
 
 (defprotocol Revised
-  (add-reviser [self reviser]))
+  (add-reviser [self methodshell reviser]))
 
 (extend-type ClassInfo
   Revised
-  (add-reviser [self reviser]
-    (let [old (:reviser self)] 
-      (assoc self :reviser (assoc reviser :super old)))))
+  (add-reviser [self methodshell reviser]
+    (let [old (:reviser self)]
+      (if (contains? old methodshell)
+        (throw (Error. "The reviser with such name already exsists"))
+        (assoc-in self [:reviser methodshell] reviser)))))
 
-(defmethod stone-eval :revise [ast e]
-  (let [n (:name ast)
-        ci (get-env @e n)
+(defmethod stone-eval :revise [{:keys [name methodshell] :as ast} e]
+  (let [ci (get-env @e name)
         reviser (create-class-info ast e)
         ]
     (if (and (satisfies? Revised ci)
              reviser
              (instance? ClassInfo reviser))
-      (swap! e put-env n (add-reviser ci reviser))
+      (swap! e put-env name (add-reviser ci methodshell reviser))
       (throw (Exception. "unknown target class")))
-    n))
+    name))
 
 (defmethod stone-eval :revise-body [ast e]
   (let [c (:children ast)]
@@ -186,6 +198,14 @@
         nil
         (recur (rest xs) (stone-eval (first xs) e))))))
 
+(defmethod stone-eval :include [ast e]
+  (let [v (:target ast)] 
+    (swap! e put-new-env :__include__ (vec (conj (get-new-env @e :__include__) v)))))
+
+(defmethod stone-eval :link [ast e]
+  (let [v (:target ast)] 
+    (swap! e put-new-env :__link__ (cons v (get-new-env @e :__link__)))))
+
 (defmethod stone-eval :class-body [ast e]
   (let [c (:children ast)]
     (loop [xs c res nil]
@@ -193,20 +213,65 @@
         nil
         (recur (rest xs) (stone-eval (first xs) e))))))
 
-(defn init-object [ci e]
+
+(defn init-reviser [rvs rv e caller-env]
+  (let [mss (->> rv
+                 :definition
+                 :body
+                 :children
+                 (filter #(= (:token %) :include))
+                 (map :target)
+                 vec)]
+    (doseq [ms mss]
+      (when-let [rv (ms rvs)]
+        (if (instance? ClassInfo rv)
+          (init-reviser rvs rv e caller-env)
+          (throw (Exception. "invalid reviser"))))))
+  
+  (let [mss (->> rv
+                 :definition
+                 :body
+                 :children
+                 (filter #(= (:token %) :link))
+                 (map :target)
+                 vec)]
+    (doseq [ms mss]
+      (when-let [rv (ms rvs)]
+        (if (instance? ClassInfo rv)
+          (let [se (atom (put-new-env (create-env (:env rv)) :__link_down__ e))]
+            (swap! e put-new-env :__link_up__ (cons (init-reviser rvs rv se caller-env) (get-new-env @e :__link_up__))))
+          (throw (Exception. "invalid reviser"))))))
+  
+  (stone-eval (:body (:definition rv)) e)
+  e)
+
+(defn init-revisers [rvs e caller-env]
+  (when-let [mss (get-new-env @caller-env :__include__ )]  ; include entry points
+    (doseq [ms mss]
+      (when-let [rv (ms rvs)]
+        (if (instance? ClassInfo rv)
+          (init-reviser rvs rv e caller-env)
+          (throw (Exception. "invalid reviser"))))))
+  e)
+
+
+(defn init-object [ci e caller-env] ; `e' is being kept in the class info
   (when-let [sp (:super ci)]
-    (init-object sp e))
+    (let [se (atom (put-new-env (create-env (:env sp)) :__sub__ e))]
+      (swap! e put-new-env :__super__ (init-object sp se caller-env))))
+  
   (stone-eval (:body (:definition ci)) e)
-  (when-let [rv (:reviser ci)]
-    (init-object rv e)))
+  (when-let [rvs (:reviser ci)]
+    (init-revisers rvs e caller-env))
+  e)
+
 
 (defn get-env-object [obj member]
-  (if (contains? (:values @(:env obj)) member)
-    (:env obj)
-    (throw (Exception. "bad access")) ;; TODO: custom exception class
-    ))
+  (or (find-object (:env obj) member)
+      (throw (Exception. "bad access"))))
+
 (defn read-object [obj member]
-  (get-env @(get-env-object obj member) member))
+  (get-env-super @(get-env-object obj member) member))
 
 (defn write-object [obj member value]
   (swap! (get-env-object obj member) put-new-env member value))
@@ -219,10 +284,10 @@
       (catch Exception e (throw (Exception. (str "bad member access: " n)))))))
 
 (defn create-instance [ast e ci]
-  (let [e (atom (->Env {} (:env ci)))
-        so (->StoneObject e)]
-    (swap! e put-new-env :this so)
-    (init-object ci e)
+  (let [ne (atom (create-env (:env ci)))
+        so (->StoneObject ne)]
+    (swap! ne put-new-env :this so)
+    (reset! ne @(init-object ci ne e))
     so))
 
 (defn read-instance-member [ast e value]
@@ -235,6 +300,11 @@
      (and (instance? ClassInfo value)
           (= n :new)) 
      (create-instance ast e value)
+     
+     (and (= value :super))
+     (if-let [s @(get-env @e :__super__)]
+       (get-env-super s n)
+       (throw (Exception. (str "super class not found"))))
      
      (instance? StoneObject value) 
      (read-instance-member ast e value)

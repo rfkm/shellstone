@@ -214,7 +214,7 @@
                                   :body {:token :block
                                          :children [:x]}})
 (fact "member"
-  (value member "def a (x) { x }") => {:token :def-statement 
+  (value member "def a (x) { x }") => {:token :defmethod
                                       :name :a
                                       :params {:token :param-list 
                                                :children [:x]}
@@ -227,7 +227,7 @@
 
 (fact "class-body"
   (value class-body "{ def a (x) { x }; x = 100}") => {:token :class-body
-                                                       :children [{:token :def-statement 
+                                                       :children [{:token :defmethod 
                                                                    :name :a
                                                                    :params {:token :param-list 
                                                                             :children [:x]}
@@ -274,7 +274,7 @@
                                                          :name :Foo
                                                          :methodshell :ms
                                                          :body {:token :revise-body
-                                                                :children [{:token :def-statement 
+                                                                :children [{:token :defmethod
                                                                             :name :a
                                                                             :params {:token :param-list 
                                                                                      :children [:x]}
