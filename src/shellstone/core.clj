@@ -1,4 +1,4 @@
-(ns stone.core
+(ns shellstone.core
   (:gen-class)
   (:use [clojure.tools.cli :only [cli]]))
 

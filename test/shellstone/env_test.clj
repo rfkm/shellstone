@@ -1,5 +1,5 @@
-(ns stone.env-test
-  (:require [stone.env :refer :all])
+(ns shellstone.env-test
+  (:require [shellstone.env :refer :all])
   (:use [midje.sweet]))
 
 (fact "env"

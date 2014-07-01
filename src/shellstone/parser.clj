@@ -1,4 +1,4 @@
-(ns stone.parser
+(ns shellstone.parser
   (:require [blancas.kern.lexer :as lex])
   (:use [blancas.kern.core]
         [blancas.kern.expr :exclude [postfix]]))

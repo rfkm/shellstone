@@ -1,6 +1,6 @@
-(ns stone.parser-test
+(ns shellstone.parser-test
   (:require [clojure.test :refer :all]
-            [stone.parser :refer :all])
+            [shellstone.parser :refer :all])
   (:use [midje.sweet]
         [blancas.kern.core]))
 

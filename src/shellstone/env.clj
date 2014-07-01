@@ -1,4 +1,4 @@
-(ns stone.env)
+(ns shellstone.env)
 
 (defrecord Env [values outer])
 

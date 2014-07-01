@@ -1,8 +1,8 @@
-(ns stone.interpreter-test
+(ns shellstone.interpreter-test
   (:require [clojure.test :refer :all]
-            [stone.parser :refer :all]
-            [stone.interpreter :refer :all]
-            [stone.env :refer :all])
+            [shellstone.parser :refer :all]
+            [shellstone.interpreter :refer :all]
+            [shellstone.env :refer :all])
   (:use [midje.sweet]))
 
 (fact "eval"
@@ -315,7 +315,7 @@
                 :values)]
       (fact 
         (:x v) => 10
-        (:foo v) => #(instance? stone.interpreter.Method %))
+        (:foo v) => #(instance? shellstone.interpreter.Method %))
       (fact 
         (-> v
             :foo
@@ -342,7 +342,7 @@
           :values
           :Bar
           :super
-          ) => #(instance? stone.interpreter.ClassInfo %))
+          ) => #(instance? shellstone.interpreter.ClassInfo %))
           
     ;; Create an instance of the subclass
     (e "b = Bar.new") => truthy
@@ -392,11 +392,11 @@
           :__super__
           deref
           :values
-          :foo) => #(instance? stone.interpreter.Method %)
+          :foo) => #(instance? shellstone.interpreter.Method %)
       (-> @env
           :values
           :b
-          (read-object :foo)) => #(instance? stone.interpreter.Method %))
+          (read-object :foo)) => #(instance? shellstone.interpreter.Method %))
     
     ;; Define a reviser
     (e "revise ms1:Foo {

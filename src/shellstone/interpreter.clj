@@ -1,7 +1,7 @@
-(ns stone.interpreter
+(ns shellstone.interpreter
   (:use [clojure.contrib.seq-utils :only [indexed]]
-        [stone.parser]
-        [stone.env]))
+        [shellstone.parser]
+        [shellstone.env]))
 
 (defrecord Function [param-list block env])
 (defrecord Method [param-list block env])
