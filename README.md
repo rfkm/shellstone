@@ -1,4 +1,6 @@
-# ShellStone
+# ShellStone 
+
+[![Build Status](https://travis-ci.org/rkworks/shellstone.svg?branch=master)](https://travis-ci.org/rkworks/shellstone)
 
 ShellStone is an experimental programming language in which [Method Shells][] is implemented.
 
